@@ -66,6 +66,9 @@ var (
 	keySearchFlip    = key.NewBinding(key.WithKeys("tab"))
 	keyReload        = key.NewBinding(key.WithKeys("R"))
 	keyReloadLower   = key.NewBinding(key.WithKeys("r"))
+	keyRoot          = key.NewBinding(key.WithKeys("/"))
+	keyHome          = key.NewBinding(key.WithKeys("~"))
+	keyHomeAlt       = key.NewBinding(key.WithKeys("`"))
 )
 
 var (
@@ -152,7 +155,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	actionKeys := []key.Binding{keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen, keyReload}
+	actionKeys := []key.Binding{keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen, keyReload}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -416,6 +419,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keyReload, keyReloadLower):
+			m.list()
+			m.previewContent = ""
+			return m, nil
+
+		case key.Matches(msg, keyRoot):
+			m.path = "/"
+			m.list()
+			m.previewContent = ""
+			return m, nil
+
+		case key.Matches(msg, keyHome, keyHomeAlt):
+			userHomeDir, _ := os.UserHomeDir()
+			m.path = userHomeDir
 			m.list()
 			m.previewContent = ""
 			return m, nil
