@@ -32,9 +32,9 @@ var (
 
 var (
 	keyForceQuit = key.NewBinding(key.WithKeys("ctrl+c"))
-	keyQuit      = key.NewBinding(key.WithKeys("esc"))
-	keyOpen      = key.NewBinding(key.WithKeys("enter"))
-	keyBack      = key.NewBinding(key.WithKeys("backspace"))
+	keyQuit      = key.NewBinding(key.WithKeys("Q"))
+	keyOpen      = key.NewBinding(key.WithKeys(" "))
+	keyBack      = key.NewBinding(key.WithKeys("enter"))
 	keyUp        = key.NewBinding(key.WithKeys("up"))
 	keyDown      = key.NewBinding(key.WithKeys("down"))
 	keyLeft      = key.NewBinding(key.WithKeys("left"))
@@ -43,6 +43,8 @@ var (
 	keyBottom    = key.NewBinding(key.WithKeys("shift+down"))
 	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"))
 	keyRightmost = key.NewBinding(key.WithKeys("shift+right"))
+	keyVimOpen   = key.NewBinding(key.WithKeys("L"))
+	keyVimBack   = key.NewBinding(key.WithKeys("H"))
 	keyVimUp     = key.NewBinding(key.WithKeys("k"))
 	keyVimDown   = key.NewBinding(key.WithKeys("j"))
 	keyVimLeft   = key.NewBinding(key.WithKeys("h"))
@@ -50,8 +52,8 @@ var (
 	keyVimTop    = key.NewBinding(key.WithKeys("g"))
 	keyVimBottom = key.NewBinding(key.WithKeys("G"))
 	keySearch    = key.NewBinding(key.WithKeys("/"))
-	keyPreview   = key.NewBinding(key.WithKeys(" "))
-	keyDelete    = key.NewBinding(key.WithKeys("d"))
+	keyPreview   = key.NewBinding(key.WithKeys("P"))
+	keyDelete    = key.NewBinding(key.WithKeys("D"))
 	keyUndo      = key.NewBinding(key.WithKeys("u"))
 )
 
@@ -83,6 +85,7 @@ func main() {
 		positions: make(map[string]position),
 	}
 	m.list()
+	m.searchMode = true
 
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if _, err := p.Run(); err != nil {
@@ -154,11 +157,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if key.Matches(msg, keySearch) {
 				m.searchMode = false
 				return m, nil
-			} else if key.Matches(msg, keyBack) {
-				if len(m.search) > 0 {
-					m.search = m.search[:len(m.search)-1]
-					return m, nil
-				}
+			} else if key.Matches(msg, keyPreview, keyQuit) {
 			} else if msg.Type == tea.KeyRunes {
 				m.search += string(msg.Runes)
 				names := make([]string, len(m.files))
@@ -198,6 +197,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.performPendingDeletions()
 			return m, tea.Quit
 
+		case key.Matches(msg, keyVimOpen):
+			fallthrough
 		case key.Matches(msg, keyOpen):
 			m.searchMode = false
 			filePath, ok := m.filePath()
@@ -217,11 +218,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.offset = 0
 				}
 				m.list()
+				m.searchMode = true
+				m.search = ""
 			} else {
 				// Open file. This will block until complete.
 				return m, m.openEditor()
 			}
 
+		case key.Matches(msg, keyVimBack):
+			fallthrough
 		case key.Matches(msg, keyBack):
 			m.searchMode = false
 			m.prevName = filepath.Base(m.path)
@@ -235,6 +240,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list()
 			m.preview()
+			m.searchMode = true
+			m.search = ""
 			return m, nil
 
 		case key.Matches(msg, keyUp):
@@ -343,7 +350,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clearSearchMsg:
 		if m.searchId == int(msg) {
-			m.searchMode = false
+			// m.searchMode = false
+			m.search = ""
 		}
 
 	case toBeDeletedMsg:
