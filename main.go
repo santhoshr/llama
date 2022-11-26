@@ -157,7 +157,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if key.Matches(msg, keySearch) {
 				m.searchMode = false
 				return m, nil
-			} else if key.Matches(msg, keyPreview, keyQuit) {
+			} else if key.Matches(msg, keyPreview, keyQuit, keyVimBack, keyVimOpen) {
 			} else if msg.Type == tea.KeyRunes {
 				m.search += string(msg.Runes)
 				names := make([]string, len(m.files))
