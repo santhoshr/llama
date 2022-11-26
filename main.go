@@ -64,6 +64,8 @@ var (
 	keyFilter        = key.NewBinding(key.WithKeys("F"))
 	keyFilterLower   = key.NewBinding(key.WithKeys("f"))
 	keySearchFlip    = key.NewBinding(key.WithKeys("tab"))
+	keyReload        = key.NewBinding(key.WithKeys("R"))
+	keyReloadLower   = key.NewBinding(key.WithKeys("r"))
 )
 
 var (
@@ -150,7 +152,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	actionKeys := []key.Binding{keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen}
+	actionKeys := []key.Binding{keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen, keyReload}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -395,8 +397,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-		case key.Matches(msg, keySearchFlip):  
+		case key.Matches(msg, keySearchFlip):
 			// Flips between search types and on off
+			m.searchString = ""
 			if !m.searchEnabled {
 				m.searchEnabled = true
 			} else if !searchFlipped {
@@ -406,12 +409,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.searchType = "type-to-select"
 				}
 				searchFlipped = true
-				time.AfterFunc(1 * time.Second, func() { searchFlipped = false })
+				time.AfterFunc(1*time.Second, func() { searchFlipped = false })
 			} else {
 				m.searchEnabled = false
 				searchFlipped = false
 			}
-		
+
+		case key.Matches(msg, keyReload, keyReloadLower):
+			m.list()
+			m.previewContent = ""
+			return m, nil
 
 		} // End of switch statement for key presses.
 
