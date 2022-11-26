@@ -60,7 +60,9 @@ var (
 	keyPreview       = key.NewBinding(key.WithKeys("P"))
 	keyPreviewLower  = key.NewBinding(key.WithKeys("p"))
 	keyDelete        = key.NewBinding(key.WithKeys("D"))
+	keyDeleteLower   = key.NewBinding(key.WithKeys("d"))
 	keyUndo          = key.NewBinding(key.WithKeys("U"))
+	keyUndoLower     = key.NewBinding(key.WithKeys("u"))
 	keyFilter        = key.NewBinding(key.WithKeys("F"))
 	keyFilterLower   = key.NewBinding(key.WithKeys("f"))
 	keySearchFlip    = key.NewBinding(key.WithKeys("tab"))
@@ -155,7 +157,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	actionKeys := []key.Binding{keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen, keyReload}
+	actionKeys := []key.Binding{keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -372,7 +374,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.ExitAltScreen
 			}
 
-		case key.Matches(msg, keyDelete):
+		case key.Matches(msg, keyDelete, keyDeleteLower):
 			filePathToDelete, ok := m.filePath()
 			if ok {
 				if m.deleteCurrentFile {
@@ -392,7 +394,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case key.Matches(msg, keyUndo):
+		case key.Matches(msg, keyUndo, keyUndoLower):
 			if len(m.toBeDeleted) > 0 {
 				m.toBeDeleted = m.toBeDeleted[:len(m.toBeDeleted)-1]
 				m.list()
@@ -607,7 +609,12 @@ start:
 	if len(m.toBeDeleted) > 0 {
 		toDelete := m.toBeDeleted[len(m.toBeDeleted)-1]
 		timeLeft := int(toDelete.at.Sub(time.Now()).Seconds())
-		deleteBar := fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
+		deleteBar := ""
+		if m.searchEnabled {
+			deleteBar = fmt.Sprintf("%v deleted. (U)ndo %v", path.Base(toDelete.path), timeLeft)
+		} else {
+			deleteBar = fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
+		}
 		main += "\n" + danger.Render(deleteBar)
 	}
 
