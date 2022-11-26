@@ -31,31 +31,43 @@ var (
 )
 
 var (
-	keyForceQuit = key.NewBinding(key.WithKeys("ctrl+c"))
-	keyQuit      = key.NewBinding(key.WithKeys("esc"))
-	keyOpen      = key.NewBinding(key.WithKeys(" "))
-	keyBack      = key.NewBinding(key.WithKeys("enter"))
-	keyUp        = key.NewBinding(key.WithKeys("up"))
-	keyDown      = key.NewBinding(key.WithKeys("down"))
-	keyLeft      = key.NewBinding(key.WithKeys("left"))
-	keyRight     = key.NewBinding(key.WithKeys("right"))
-	keyTop       = key.NewBinding(key.WithKeys("shift+up"))
-	keyBottom    = key.NewBinding(key.WithKeys("shift+down"))
-	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"))
-	keyRightmost = key.NewBinding(key.WithKeys("shift+right"))
-	keyVimOpen   = key.NewBinding(key.WithKeys("L"))
-	keyVimBack   = key.NewBinding(key.WithKeys("H"))
-	keyVimUp     = key.NewBinding(key.WithKeys("k"))
-	keyVimDown   = key.NewBinding(key.WithKeys("j"))
-	keyVimLeft   = key.NewBinding(key.WithKeys("h"))
-	keyVimRight  = key.NewBinding(key.WithKeys("l"))
-	keyVimTop    = key.NewBinding(key.WithKeys("g"))
-	keyVimBottom = key.NewBinding(key.WithKeys("G"))
-	keySearch    = key.NewBinding(key.WithKeys("/"))
-	keyPreview   = key.NewBinding(key.WithKeys("P"))
-	keyDelete    = key.NewBinding(key.WithKeys("D"))
-	keyUndo      = key.NewBinding(key.WithKeys("U"))
-	keyFilter    = key.NewBinding(key.WithKeys("F"))
+	keyForceQuit     = key.NewBinding(key.WithKeys("ctrl+c"))
+	keyQuit          = key.NewBinding(key.WithKeys("esc"))
+	keyQuitAlt1      = key.NewBinding(key.WithKeys("Q"))
+	keyQuitAlt1Lower = key.NewBinding(key.WithKeys("q"))
+	keyQuitAlt2      = key.NewBinding(key.WithKeys("C"))
+	keyQuitAlt2Lower = key.NewBinding(key.WithKeys("c"))
+	keyOpen          = key.NewBinding(key.WithKeys(" "))
+	keyBack          = key.NewBinding(key.WithKeys("enter"))
+	keyUp            = key.NewBinding(key.WithKeys("up"))
+	keyDown          = key.NewBinding(key.WithKeys("down"))
+	keyLeft          = key.NewBinding(key.WithKeys("left"))
+	keyRight         = key.NewBinding(key.WithKeys("right"))
+	keyTop           = key.NewBinding(key.WithKeys("shift+up"))
+	keyBottom        = key.NewBinding(key.WithKeys("shift+down"))
+	keyLeftmost      = key.NewBinding(key.WithKeys("shift+left"))
+	keyRightmost     = key.NewBinding(key.WithKeys("shift+right"))
+	keyVimOpen       = key.NewBinding(key.WithKeys("L"))
+	keyVimBack       = key.NewBinding(key.WithKeys("H"))
+	keyVimUp         = key.NewBinding(key.WithKeys("k"))
+	keyVimDown       = key.NewBinding(key.WithKeys("j"))
+	keyVimLeft       = key.NewBinding(key.WithKeys("h"))
+	keyVimRight      = key.NewBinding(key.WithKeys("l"))
+	keyVimTop        = key.NewBinding(key.WithKeys("g"))
+	keyVimBottom     = key.NewBinding(key.WithKeys("G"))
+	keySearch        = key.NewBinding(key.WithKeys("S"))
+	keySearchLower   = key.NewBinding(key.WithKeys("s"))
+	keyPreview       = key.NewBinding(key.WithKeys("P"))
+	keyPreviewLower  = key.NewBinding(key.WithKeys("p"))
+	keyDelete        = key.NewBinding(key.WithKeys("D"))
+	keyUndo          = key.NewBinding(key.WithKeys("U"))
+	keyFilter        = key.NewBinding(key.WithKeys("F"))
+	keyFilterLower   = key.NewBinding(key.WithKeys("f"))
+	keySearchFlip    = key.NewBinding(key.WithKeys("tab"))
+)
+
+var (
+	searchFlipped bool
 )
 
 func main() {
@@ -86,7 +98,8 @@ func main() {
 		positions: make(map[string]position),
 	}
 	m.list()
-	m.searchMode = true
+	m.searchEnabled = true
+	m.searchType = "type-to-filter"
 
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if _, err := p.Run(); err != nil {
@@ -103,15 +116,15 @@ type model struct {
 	width, height     int                 // Terminal size.
 	offset            int                 // Scroll position.
 	positions         map[string]position // Map of cursor positions per path.
-	search            string              // Type to select files with this value.
-	searchMode        bool                // Whether type-to-select is active.
-	filterMode        bool                // Whether type-to-filter is active.
+	searchString      string              // Type to select files with this value.
+	searchEnabled     bool                // Whether type-to-select or type-to-filter is active.
+	searchType        string              // Type of filter whether type-to-select or type-to-filter
 	searchId          int                 // Search id to indicate what search we are currently on.
 	matchedIndexes    []int               // List of char found indexes.
 	prevName          string              // Base name of previous directory before "up".
 	findPrevName      bool                // On View(), set c&r to point to prevName.
 	exitCode          int                 // Exit code.
-	previewMode       bool                // Whether preview is active.
+	previewEnabled    bool                // Whether preview is active.
 	previewContent    string              // Content of preview.
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
@@ -137,6 +150,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	actionKeys := []key.Binding{keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -152,65 +166,69 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Also, m.c&r no longer point to the correct indexes.
 		m.c = 0
 		m.r = 0
+		// Enable search if already enabled #todo
+		// m.searchEnabled = true
 		return m, nil
 
 	case tea.KeyMsg:
-		if m.searchMode {
-			if key.Matches(msg, keySearch) {
-				m.searchMode = false
-				return m, nil
-			} else if key.Matches(msg, keyFilter, keyPreview, keyQuit, keyVimBack, keyVimOpen) {
-			} else if msg.Type == tea.KeyRunes {
-				m.search += string(msg.Runes)
-				names := make([]string, len(m.files))
-				for i, fi := range m.files {
-					names[i] = fi.Name()
-				}
-				matches := fuzzy.Find(m.search, names)
-				if len(matches) > 0 {
-					m.matchedIndexes = matches[0].MatchedIndexes
-					index := matches[0].Index
-					m.c = index / m.rows
-					m.r = index % m.rows
-				}
-				m.updateOffset()
-				m.saveCursorPosition()
-				m.preview()
-				// Save search id to clear only current search after delay.
-				// User may have already started typing next search.
-				searchId := m.searchId
-				return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
-					return clearSearchMsg(searchId)
-				})
-			}
-		} else if m.filterMode {
-			if key.Matches(msg, keyFilter) {
-				m.filterMode = false
-				return m, nil
-			} else if key.Matches(msg, keySearch, keyPreview, keyQuit, keyVimBack, keyVimOpen) {
-			} else if msg.Type == tea.KeyRunes {
-				m.search += string(msg.Runes)
-				names := make([]string, len(m.files))
-				for i, fi := range m.files {
-					names[i] = fi.Name()
-				}
-				matches := fuzzy.Find(m.search, names)
-				if len(matches) > 0 {
-					var fresults []fs.DirEntry
-					for _, match := range matches {
-						fresults = append(fresults, m.files[match.Index])
+		if m.searchEnabled {
+			if m.searchType == "type-to-select" {
+				if key.Matches(msg, keySearch) {
+					m.searchEnabled = false
+					return m, nil
+				} else if key.Matches(msg, actionKeys...) {
+				} else if msg.Type == tea.KeyRunes {
+					m.searchString += string(msg.Runes)
+					names := make([]string, len(m.files))
+					for i, fi := range m.files {
+						names[i] = fi.Name()
 					}
-					m.files = fresults
+					matches := fuzzy.Find(m.searchString, names)
+					if len(matches) > 0 {
+						m.matchedIndexes = matches[0].MatchedIndexes
+						index := matches[0].Index
+						m.c = index / m.rows
+						m.r = index % m.rows
+					}
+					m.updateOffset()
+					m.saveCursorPosition()
+					m.preview()
+					// Save search id to clear only current search after delay.
+					// User may have already started typing next search.
+					searchId := m.searchId
+					return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+						return clearSearchMsg(searchId)
+					})
 				}
-				m.updateOffset()
-				m.saveCursorPosition()
-				m.preview()
-				// Save search id to clear only current search after delay.
-				// User may have already started typing next search.
-				searchId := m.searchId
-				return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
-					return clearSearchMsg(searchId)
-				})
+			} else if m.searchType == "type-to-filter" {
+				if key.Matches(msg, keyFilter) {
+					m.searchEnabled = false
+					return m, nil
+				} else if key.Matches(msg, actionKeys...) {
+				} else if msg.Type == tea.KeyRunes {
+					m.searchString += string(msg.Runes)
+					names := make([]string, len(m.files))
+					for i, fi := range m.files {
+						names[i] = fi.Name()
+					}
+					matches := fuzzy.Find(m.searchString, names)
+					if len(matches) > 0 {
+						var fresults []fs.DirEntry
+						for _, match := range matches {
+							fresults = append(fresults, m.files[match.Index])
+						}
+						m.files = fresults
+					}
+					m.updateOffset()
+					m.saveCursorPosition()
+					m.preview()
+					// Save search id to clear only current search after delay.
+					// User may have already started typing next search.
+					searchId := m.searchId
+					return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+						return clearSearchMsg(searchId)
+					})
+				}
 			}
 		}
 
@@ -221,17 +239,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.performPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyQuit):
+		case key.Matches(msg, keyQuit, keyQuitAlt1, keyQuitAlt1Lower, keyQuitAlt2, keyQuitAlt2Lower):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
 			m.performPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyVimOpen):
-			fallthrough
-		case key.Matches(msg, keyOpen):
-			m.searchMode = false
+		case key.Matches(msg, keyOpen, keyVimOpen):
+			// m.searchEnabled = false
+			searchFlipped = false
 			filePath, ok := m.filePath()
 			if !ok {
 				return m, nil
@@ -249,17 +266,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.offset = 0
 				}
 				m.list()
-				m.searchMode = true
-				m.search = ""
+				// m.searchEnabled = true
+				m.searchString = ""
 			} else {
 				// Open file. This will block until complete.
 				return m, m.openEditor()
 			}
 
-		case key.Matches(msg, keyVimBack):
-			fallthrough
-		case key.Matches(msg, keyBack):
-			m.searchMode = false
+		case key.Matches(msg, keyBack, keyVimBack):
+			// m.searchEnabled = false
+			searchFlipped = false
 			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
 			if p, ok := m.positions[m.path]; ok {
@@ -271,8 +287,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list()
 			m.preview()
-			m.searchMode = true
-			m.search = ""
+			// m.searchEnabled = true
+			m.searchString = ""
 			return m, nil
 
 		case key.Matches(msg, keyUp):
@@ -291,7 +307,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.moveRightmost()
 
 		case key.Matches(msg, keyVimUp):
-			if !m.searchMode {
+			if !m.searchEnabled {
 				m.moveUp()
 			}
 
@@ -299,7 +315,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.moveDown()
 
 		case key.Matches(msg, keyVimDown):
-			if !m.searchMode {
+			if !m.searchEnabled {
 				m.moveDown()
 			}
 
@@ -307,7 +323,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.moveLeft()
 
 		case key.Matches(msg, keyVimLeft):
-			if !m.searchMode {
+			if !m.searchEnabled {
 				m.moveLeft()
 			}
 
@@ -315,22 +331,24 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.moveRight()
 
 		case key.Matches(msg, keyVimRight):
-			if !m.searchMode {
+			if !m.searchEnabled {
 				m.moveRight()
 			}
 
-		case key.Matches(msg, keyFilter):
-			m.filterMode = true
+		case key.Matches(msg, keyFilter, keyFilterLower):
+			m.searchEnabled = true
+			m.searchType = "type-to-filter"
 			m.searchId++
-			m.search = ""
+			m.searchString = ""
 
-		case key.Matches(msg, keySearch):
-			m.searchMode = true
+		case key.Matches(msg, keySearch, keySearchLower):
+			m.searchEnabled = true
+			m.searchType = "type-to-select"
 			m.searchId++
-			m.search = ""
+			m.searchString = ""
 
-		case key.Matches(msg, keyPreview):
-			m.previewMode = !m.previewMode
+		case key.Matches(msg, keyPreview, keyPreviewLower):
+			m.previewEnabled = !m.previewEnabled
 			// Reset position history as c&r changes.
 			m.positions = make(map[string]position)
 			// Keep cursor at same place.
@@ -341,7 +359,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.prevName = fileName
 			m.findPrevName = true
 
-			if m.previewMode {
+			if m.previewEnabled {
 				m.preview()
 				return m, tea.EnterAltScreen
 			} else {
@@ -377,6 +395,24 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
+		case key.Matches(msg, keySearchFlip):  
+			// Flips between search types and on off
+			if !m.searchEnabled {
+				m.searchEnabled = true
+			} else if !searchFlipped {
+				if m.searchType == "type-to-select" {
+					m.searchType = "type-to-filter"
+				} else if m.searchType == "type-to-filter" {
+					m.searchType = "type-to-select"
+				}
+				searchFlipped = true
+				time.AfterFunc(1 * time.Second, func() { searchFlipped = false })
+			} else {
+				m.searchEnabled = false
+				searchFlipped = false
+			}
+		
+
 		} // End of switch statement for key presses.
 
 		m.deleteCurrentFile = false
@@ -387,7 +423,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clearSearchMsg:
 		if m.searchId == int(msg) {
 			// m.searchMode = false
-			m.search = ""
+			m.searchString = ""
 		}
 
 	case toBeDeletedMsg:
@@ -412,7 +448,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) View() string {
 	width := m.width
-	if m.previewMode {
+	if m.previewEnabled {
 		width = m.width / 2
 	}
 	height := m.listHeight()
@@ -481,7 +517,7 @@ start:
 
 	// Get output rows width before coloring.
 	outputWidth := len(path.Base(m.path)) // Use current dir name as default.
-	if m.previewMode {
+	if m.previewEnabled {
 		row := make([]string, m.columns)
 		for i := 0; i < m.columns; i++ {
 			if len(names[i]) > 0 {
@@ -524,18 +560,19 @@ start:
 	}
 
 	// Filter bar (green).
-	filter := ""
-	if m.searchMode {
-		filter = "/" + m.search
+	barCaption := ""
+	if m.searchEnabled {
+		if m.searchType == "type-to-select" {
+			barCaption = "/" + m.searchString
+		} else if m.searchType == "type-to-filter" {
+			barCaption = "|" + m.searchString
+		}
 	}
-	if m.filterMode {
-		filter = "|" + m.search
-	}
-	barLen := len(location) + len(filter)
+	barLen := len(location) + len(barCaption)
 	if barLen > outputWidth {
 		location = location[min(barLen-outputWidth, len(location)):]
 	}
-	bar := bar.Render(location) + search.Render(filter)
+	bar := bar.Render(location) + search.Render(barCaption)
 
 	main := bar + "\n" + Join(output, "\n")
 
@@ -551,7 +588,7 @@ start:
 		main += "\n" + danger.Render(deleteBar)
 	}
 
-	if m.previewMode {
+	if m.previewEnabled {
 		return lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			main,
@@ -724,7 +761,7 @@ func (m *model) openEditor() tea.Cmd {
 }
 
 func (m *model) preview() {
-	if !m.previewMode {
+	if !m.previewEnabled {
 		return
 	}
 	filePath, ok := m.filePath()
