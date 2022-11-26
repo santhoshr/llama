@@ -32,7 +32,7 @@ var (
 
 var (
 	keyForceQuit = key.NewBinding(key.WithKeys("ctrl+c"))
-	keyQuit      = key.NewBinding(key.WithKeys("Q"))
+	keyQuit      = key.NewBinding(key.WithKeys("esc"))
 	keyOpen      = key.NewBinding(key.WithKeys(" "))
 	keyBack      = key.NewBinding(key.WithKeys("enter"))
 	keyUp        = key.NewBinding(key.WithKeys("up"))
@@ -54,7 +54,8 @@ var (
 	keySearch    = key.NewBinding(key.WithKeys("/"))
 	keyPreview   = key.NewBinding(key.WithKeys("P"))
 	keyDelete    = key.NewBinding(key.WithKeys("D"))
-	keyUndo      = key.NewBinding(key.WithKeys("u"))
+	keyUndo      = key.NewBinding(key.WithKeys("U"))
+	keyFilter    = key.NewBinding(key.WithKeys("F"))
 )
 
 func main() {
@@ -104,6 +105,7 @@ type model struct {
 	positions         map[string]position // Map of cursor positions per path.
 	search            string              // Type to select files with this value.
 	searchMode        bool                // Whether type-to-select is active.
+	filterMode        bool                // Whether type-to-filter is active.
 	searchId          int                 // Search id to indicate what search we are currently on.
 	matchedIndexes    []int               // List of char found indexes.
 	prevName          string              // Base name of previous directory before "up".
@@ -157,7 +159,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if key.Matches(msg, keySearch) {
 				m.searchMode = false
 				return m, nil
-			} else if key.Matches(msg, keyPreview, keyQuit, keyVimBack, keyVimOpen) {
+			} else if key.Matches(msg, keyFilter, keyPreview, keyQuit, keyVimBack, keyVimOpen) {
 			} else if msg.Type == tea.KeyRunes {
 				m.search += string(msg.Runes)
 				names := make([]string, len(m.files))
@@ -170,6 +172,35 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					index := matches[0].Index
 					m.c = index / m.rows
 					m.r = index % m.rows
+				}
+				m.updateOffset()
+				m.saveCursorPosition()
+				m.preview()
+				// Save search id to clear only current search after delay.
+				// User may have already started typing next search.
+				searchId := m.searchId
+				return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+					return clearSearchMsg(searchId)
+				})
+			}
+		} else if m.filterMode {
+			if key.Matches(msg, keyFilter) {
+				m.filterMode = false
+				return m, nil
+			} else if key.Matches(msg, keySearch, keyPreview, keyQuit, keyVimBack, keyVimOpen) {
+			} else if msg.Type == tea.KeyRunes {
+				m.search += string(msg.Runes)
+				names := make([]string, len(m.files))
+				for i, fi := range m.files {
+					names[i] = fi.Name()
+				}
+				matches := fuzzy.Find(m.search, names)
+				if len(matches) > 0 {
+					var fresults []fs.DirEntry
+					for _, match := range matches {
+						fresults = append(fresults, m.files[match.Index])
+					}
+					m.files = fresults
 				}
 				m.updateOffset()
 				m.saveCursorPosition()
@@ -287,6 +318,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.searchMode {
 				m.moveRight()
 			}
+
+		case key.Matches(msg, keyFilter):
+			m.filterMode = true
+			m.searchId++
+			m.search = ""
 
 		case key.Matches(msg, keySearch):
 			m.searchMode = true
@@ -491,6 +527,9 @@ start:
 	filter := ""
 	if m.searchMode {
 		filter = "/" + m.search
+	}
+	if m.filterMode {
+		filter = "|" + m.search
 	}
 	barLen := len(location) + len(filter)
 	if barLen > outputWidth {
