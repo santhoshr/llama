@@ -71,6 +71,9 @@ var (
 	keyRoot          = key.NewBinding(key.WithKeys("/"))
 	keyHome          = key.NewBinding(key.WithKeys("~"))
 	keyHomeAlt       = key.NewBinding(key.WithKeys("`"))
+	keyToggleFiles   = key.NewBinding(key.WithKeys("!"))
+	keyToggleDir     = key.NewBinding(key.WithKeys("@"))
+	keyToggleHidden  = key.NewBinding(key.WithKeys("#")) // not working
 )
 
 var (
@@ -157,7 +160,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	actionKeys := []key.Binding{keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete}
+	actionKeys := []key.Binding{keyToggleDir, keyToggleFiles, keyToggleHidden, keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -438,6 +441,42 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.previewContent = ""
 			return m, nil
 
+		case key.Matches(msg, keyToggleFiles):
+			var fresults []fs.DirEntry
+			for i, fi := range m.files {
+				if !fi.IsDir() {
+					fresults = append(fresults, m.files[i])
+				}
+			}
+			m.files = fresults
+			m.updateOffset()
+			m.saveCursorPosition()
+			m.preview()
+
+		case key.Matches(msg, keyToggleDir):
+			var fresults []fs.DirEntry
+			for i, fi := range m.files {
+				if fi.IsDir() {
+					fresults = append(fresults, m.files[i])
+				}
+			}
+			m.files = fresults
+			m.updateOffset()
+			m.saveCursorPosition()
+			m.preview()
+
+		case key.Matches(msg, keyToggleHidden):
+			var fresults []fs.DirEntry
+			for i, fi := range m.files {
+				if !fi.Type().IsRegular() {
+					fresults = append(fresults, m.files[i])
+				}
+			}
+			m.files = fresults
+			m.updateOffset()
+			m.saveCursorPosition()
+			m.preview()
+
 		} // End of switch statement for key presses.
 
 		m.deleteCurrentFile = false
@@ -700,6 +739,28 @@ func (m *model) moveRightmost() {
 	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
 		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
 		m.c = m.columns - 1
+	}
+}
+
+func (m *model) movePageUp() {
+	m.r = m.rows - 10
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = m.rows - 10 - (m.columns*m.rows - len(m.files))
+	}
+}
+
+func (m *model) movePageDown() {
+	m.r += 10
+	if m.r >= m.rows {
+		m.r = m.rows - 1
+		m.c++
+	}
+	if m.c >= m.columns {
+		m.c = 0
+	}
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = 0
+		m.c = 0
 	}
 }
 
