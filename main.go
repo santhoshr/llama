@@ -31,49 +31,44 @@ var (
 )
 
 var (
-	keyForceQuit     = key.NewBinding(key.WithKeys("ctrl+c"))
-	keyQuit          = key.NewBinding(key.WithKeys("esc"))
-	keyQuitAlt1      = key.NewBinding(key.WithKeys("Q"))
-	keyQuitAlt1Lower = key.NewBinding(key.WithKeys("q"))
-	keyQuitAlt2      = key.NewBinding(key.WithKeys("C"))
-	keyQuitAlt2Lower = key.NewBinding(key.WithKeys("c"))
-	keyOpen          = key.NewBinding(key.WithKeys(" "))
-	keyBack          = key.NewBinding(key.WithKeys("enter"))
-	keyUp            = key.NewBinding(key.WithKeys("up"))
-	keyDown          = key.NewBinding(key.WithKeys("down"))
-	keyLeft          = key.NewBinding(key.WithKeys("left"))
-	keyRight         = key.NewBinding(key.WithKeys("right"))
-	keyTop           = key.NewBinding(key.WithKeys("shift+up"))
-	keyBottom        = key.NewBinding(key.WithKeys("shift+down"))
-	keyLeftmost      = key.NewBinding(key.WithKeys("shift+left"))
-	keyRightmost     = key.NewBinding(key.WithKeys("shift+right"))
-	keyVimOpen       = key.NewBinding(key.WithKeys("L"))
-	keyVimBack       = key.NewBinding(key.WithKeys("H"))
-	keyVimUp         = key.NewBinding(key.WithKeys("k"))
-	keyVimDown       = key.NewBinding(key.WithKeys("j"))
-	keyVimLeft       = key.NewBinding(key.WithKeys("h"))
-	keyVimRight      = key.NewBinding(key.WithKeys("l"))
-	keyVimTop        = key.NewBinding(key.WithKeys("g"))
-	keyVimBottom     = key.NewBinding(key.WithKeys("G"))
-	keySearch        = key.NewBinding(key.WithKeys("S"))
-	keySearchLower   = key.NewBinding(key.WithKeys("s"))
-	keyPreview       = key.NewBinding(key.WithKeys("P"))
-	keyPreviewLower  = key.NewBinding(key.WithKeys("p"))
-	keyDelete        = key.NewBinding(key.WithKeys("D"))
-	keyDeleteLower   = key.NewBinding(key.WithKeys("d"))
-	keyUndo          = key.NewBinding(key.WithKeys("U"))
-	keyUndoLower     = key.NewBinding(key.WithKeys("u"))
-	keyFilter        = key.NewBinding(key.WithKeys("F"))
-	keyFilterLower   = key.NewBinding(key.WithKeys("f"))
-	keySearchFlip    = key.NewBinding(key.WithKeys("tab"))
-	keyReload        = key.NewBinding(key.WithKeys("R"))
-	keyReloadLower   = key.NewBinding(key.WithKeys("r"))
-	keyRoot          = key.NewBinding(key.WithKeys("/"))
-	keyHome          = key.NewBinding(key.WithKeys("~"))
-	keyHomeAlt       = key.NewBinding(key.WithKeys("`"))
-	keyToggleFiles   = key.NewBinding(key.WithKeys("!"))
-	keyToggleDir     = key.NewBinding(key.WithKeys("@"))
-	keyToggleHidden  = key.NewBinding(key.WithKeys("#")) // not working
+	keyForceQuit    = key.NewBinding(key.WithKeys("ctrl+c"))
+	keyQuit         = key.NewBinding(key.WithKeys("esc"))
+	keyOpen         = key.NewBinding(key.WithKeys(" "))
+	keyBack         = key.NewBinding(key.WithKeys("enter"))
+	keyUp           = key.NewBinding(key.WithKeys("up"))
+	keyDown         = key.NewBinding(key.WithKeys("down"))
+	keyLeft         = key.NewBinding(key.WithKeys("left"))
+	keyRight        = key.NewBinding(key.WithKeys("right"))
+	keyTop          = key.NewBinding(key.WithKeys("shift+up"))
+	keyBottom       = key.NewBinding(key.WithKeys("shift+down"))
+	keyLeftmost     = key.NewBinding(key.WithKeys("shift+left"))
+	keyRightmost    = key.NewBinding(key.WithKeys("shift+right"))
+	keyVimOpen      = key.NewBinding(key.WithKeys("L"))
+	keyVimBack      = key.NewBinding(key.WithKeys("H"))
+	keyVimUp        = key.NewBinding(key.WithKeys("k"))
+	keyVimDown      = key.NewBinding(key.WithKeys("j"))
+	keyVimLeft      = key.NewBinding(key.WithKeys("h"))
+	keyVimRight     = key.NewBinding(key.WithKeys("l"))
+	keyVimTop       = key.NewBinding(key.WithKeys("g"))
+	keyVimBottom    = key.NewBinding(key.WithKeys("G"))
+	keySearch       = key.NewBinding(key.WithKeys("/"))
+	keyPreview      = key.NewBinding(key.WithKeys("P"))
+	keyPreviewLower = key.NewBinding(key.WithKeys("p"))
+	keyDelete       = key.NewBinding(key.WithKeys("D"))
+	keyDeleteLower  = key.NewBinding(key.WithKeys("d"))
+	keyUndo         = key.NewBinding(key.WithKeys("U"))
+	keyUndoLower    = key.NewBinding(key.WithKeys("u"))
+	keyFilter       = key.NewBinding(key.WithKeys("F"))
+	keyFilterLower  = key.NewBinding(key.WithKeys("f"))
+	keySearchFlip   = key.NewBinding(key.WithKeys("tab"))
+	keyReload       = key.NewBinding(key.WithKeys("R"))
+	keyReloadLower  = key.NewBinding(key.WithKeys("r"))
+	keyRoot         = key.NewBinding(key.WithKeys("\\"))
+	keyHome         = key.NewBinding(key.WithKeys("~"))
+	keyHomeAlt      = key.NewBinding(key.WithKeys("`"))
+	keyToggleFiles  = key.NewBinding(key.WithKeys("!"))
+	keyToggleDir    = key.NewBinding(key.WithKeys("@"))
+	keyToggleHidden = key.NewBinding(key.WithKeys("#")) // not working
 )
 
 var (
@@ -160,7 +155,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	actionKeys := []key.Binding{keyToggleDir, keyToggleFiles, keyToggleHidden, keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt1, keyQuitAlt2, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete}
+	actionKeys := []key.Binding{keyToggleDir, keyToggleFiles, keyToggleHidden, keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -229,6 +224,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						m.files = fresults
 					}
+					m.c = 0
+					m.r = 0
+					m.offset = 0
 					m.updateOffset()
 					m.saveCursorPosition()
 					m.preview()
@@ -249,7 +247,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.performPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyQuit, keyQuitAlt1, keyQuitAlt1Lower, keyQuitAlt2, keyQuitAlt2Lower):
+		case key.Matches(msg, keyQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
@@ -351,7 +349,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.searchId++
 			m.searchString = ""
 
-		case key.Matches(msg, keySearch, keySearchLower):
+		case key.Matches(msg, keySearch):
 			m.searchEnabled = true
 			m.searchType = "type-to-select"
 			m.searchId++
