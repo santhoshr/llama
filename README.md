@@ -1,53 +1,19 @@
-# 🦙 llama
-
-<p align="center">
-  <br>
-  <img src=".github/images/demo.gif" width="600" alt="Llama Demo">
-  <br>
-</p>
+# 🦙 llama File Manager
 
 Llama — a terminal file manager.
 
-Why another file manager? I wanted something simple and minimalistic.
-Something to help me with faster navigation in the filesystem; a `cd` and `ls`
-replacement. So I build "llama". It allows for quick navigation with fuzzy
-searching. `cd` integration is quite simple. And you can open `vim` right from
-the llama. That's it. As simple and dumb as a llama.
-
-## Install
-
-```
-brew install llama
-```
-
-```
-snap install llama
-```
-
-```
-pkg_add llama
-```
-
-```
-go install github.com/antonmedv/llama@latest
-```
-
-Or download [prebuild binaries](https://github.com/antonmedv/llama/releases).
-
-Put the next function into the **.bashrc** or a similar config:
-
 <table>
 <tr>
-  <th> Bash </th>
-  <th> Fish </th>
-  <th> PowerShell </th>
+<th> Bash </th>
+<th> Fish </th>
+<th> PowerShell </th>
 </tr>
 <tr>
 <td>
 
 ```bash
 function ll {
-  cd "$(llama "$@")"
+	cd "$(llama "$@")"
 }
 ```
 
@@ -56,7 +22,7 @@ function ll {
 
 ```fish
 function ll
-  cd (llama $argv);
+cd (llama $argv);
 end
 ```
 
@@ -65,7 +31,7 @@ end
 
 ```powershell
 function ll() {
-  cd "$(llama $args)"
+	cd "$(llama $args)"
 }
 ```
 
@@ -79,16 +45,25 @@ directory of the parent process.
 
 ## Usage
 
-| Key binding      | Description        |
-|------------------|--------------------|
-| `Arrows`, `hjkl` | Move cursor        |
-| `Enter`          | Enter directory    |
-| `Backspace`      | Exit directory     |
-| `Space`          | Toggle preview     |
-| `Esc`            | Exit with cd       |
-| `Ctrl+C`         | Exit without cd    |
-| `/`              | Fuzzy search       |
-| `dd`             | Delete file or dir |
+ | Key binding        | Description                                                                   | 
+ | ------------------ | --------------------                                                          | 
+ | `Arrows`, `hjkl`   | Move cursor                                                                   | 
+ | `Shift + Arrows`   | Move to the corners                                                           | 
+ | `g`, `G`           | Move to the top or bottom                                                     | 
+ | `Enter`, `L`       | Enter directory                                                               | 
+ | `Backspace`, `H`   | Exit directory                                                                | 
+ | `Esc`              | Exit with cd if empty search / filter otherwise empties search / filter       | 
+ | `Ctrl+C`           | Exit without cd                                                               | 
+ | `dd`, `DD`         | Delete file or dir, use capital when search / filter is active                | 
+ | `/`                | Fuzzy search                                                                  | 
+ | `r`  , `R`         | Reload directory, use capital when in search / filter is active               | 
+ | `f, F`             | Toggle Filter, use capital when search / filter is active                     | 
+ | `tab`              | Toggle between search and filter and between on and off by double pressing it | 
+ | `space`            | Toggle Search / Filter on and off                                             | 
+ | `/`                | Navigate to Root                                                              | 
+ | \``, ~`            | Navigate to Home                                                              | 
+ | `!`                | Toggle files filtering directories                                            | 
+ | `@`                | Toggle directories filtering files                                            | 
 
 The `EDITOR` or `LLAMA_EDITOR` environment variable used for opening files from
 the llama.
@@ -97,15 +72,7 @@ the llama.
 export EDITOR=vim
 ```
 
-Preview mode:
-
-<img src=".github/images/preview-mode.gif" width="600" alt="Llama Preview Mode">
-
-Delete file or directory:
-
-<img src=".github/images/rm-demo.gif" width="600" alt="Llama Deletes a File">
-
-
 ## License
 
 [MIT](LICENSE)
+
