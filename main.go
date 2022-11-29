@@ -33,8 +33,8 @@ var (
 var (
 	keyForceQuit    = key.NewBinding(key.WithKeys("ctrl+c"))
 	keyQuit         = key.NewBinding(key.WithKeys("esc"))
-	keyOpen         = key.NewBinding(key.WithKeys(" "))
-	keyBack         = key.NewBinding(key.WithKeys("enter"))
+	keyOpen         = key.NewBinding(key.WithKeys("enter"))
+	keyBack         = key.NewBinding(key.WithKeys("backspace"))
 	keyUp           = key.NewBinding(key.WithKeys("up"))
 	keyDown         = key.NewBinding(key.WithKeys("down"))
 	keyLeft         = key.NewBinding(key.WithKeys("left"))
@@ -69,6 +69,7 @@ var (
 	keyToggleFiles  = key.NewBinding(key.WithKeys("!"))
 	keyToggleDir    = key.NewBinding(key.WithKeys("@"))
 	keyToggleHidden = key.NewBinding(key.WithKeys("#")) // not working
+	keyToggleSearch = key.NewBinding(key.WithKeys(" "))
 )
 
 var (
@@ -115,7 +116,7 @@ func main() {
 
 type model struct {
 	path              string              // Current dir path we are looking at.
-	files             []fs.DirEntry       // Files we are looking at.
+	files             []dirEntry          // Wrapper for fs.DirEntry
 	c, r              int                 // Selector position in columns and rows.
 	columns, rows     int                 // Displayed amount of rows and columns.
 	width, height     int                 // Terminal size.
@@ -133,6 +134,13 @@ type model struct {
 	previewContent    string              // Content of preview.
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
+}
+
+type dirEntry struct {
+	Name  string
+	IsDir bool
+	Type  fs.FileMode
+	fs    fs.DirEntry
 }
 
 type position struct {
@@ -186,7 +194,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.searchString += string(msg.Runes)
 					names := make([]string, len(m.files))
 					for i, fi := range m.files {
-						names[i] = fi.Name()
+						names[i] = fi.Name
 					}
 					matches := fuzzy.Find(m.searchString, names)
 					if len(matches) > 0 {
@@ -214,11 +222,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.searchString += string(msg.Runes)
 					names := make([]string, len(m.files))
 					for i, fi := range m.files {
-						names[i] = fi.Name()
+						names[i] = fi.Name
 					}
 					matches := fuzzy.Find(m.searchString, names)
 					if len(matches) > 0 {
-						var fresults []fs.DirEntry
+						var fresults []dirEntry
 						for _, match := range matches {
 							fresults = append(fresults, m.files[match.Index])
 						}
@@ -244,14 +252,24 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyForceQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			m.exitCode = 2
-			m.performPendingDeletions()
+			// m.performPendingDeletions()
 			return m, tea.Quit
 
 		case key.Matches(msg, keyQuit):
+			// if filter / search is active it clear first, then subsequent esc will quit
+			if m.searchEnabled && len(m.searchString) > 0 {
+				m.searchString = ""
+				m.c = 0
+				m.r = 0
+				m.offset = 0
+				m.updateOffset()
+				m.list()
+				return m, nil
+			}
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
-			m.performPendingDeletions()
+			// m.performPendingDeletions()
 			return m, tea.Quit
 
 		case key.Matches(msg, keyOpen, keyVimOpen):
@@ -379,6 +397,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			filePathToDelete, ok := m.filePath()
 			if ok {
 				if m.deleteCurrentFile {
+					// cancelling if it is parent directory
+					fileName, _ := m.fileName()
+					if fileName == ".." {
+						return m, nil
+					}
 					m.deleteCurrentFile = false
 					m.toBeDeleted = append(m.toBeDeleted, toDelete{
 						path: filePathToDelete,
@@ -421,8 +444,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				searchFlipped = false
 			}
 
+		case key.Matches(msg, keyToggleSearch):
+			// Flips between search on and off
+			m.searchString = ""
+			if !m.searchEnabled {
+				m.searchEnabled = true
+			} else {
+				m.searchEnabled = false
+			}
+
 		case key.Matches(msg, keyReload, keyReloadLower):
 			m.list()
+			m.searchString = ""
 			m.previewContent = ""
 			return m, nil
 
@@ -440,9 +473,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, keyToggleFiles):
-			var fresults []fs.DirEntry
+			var fresults []dirEntry
 			for i, fi := range m.files {
-				if !fi.IsDir() {
+				if !fi.IsDir {
 					fresults = append(fresults, m.files[i])
 				}
 			}
@@ -452,9 +485,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.preview()
 
 		case key.Matches(msg, keyToggleDir):
-			var fresults []fs.DirEntry
+			var fresults []dirEntry
 			for i, fi := range m.files {
-				if fi.IsDir() {
+				if fi.IsDir {
 					fresults = append(fresults, m.files[i])
 				}
 			}
@@ -464,9 +497,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.preview()
 
 		case key.Matches(msg, keyToggleHidden):
-			var fresults []fs.DirEntry
+			var fresults []dirEntry
 			for i, fi := range m.files {
-				if !fi.Type().IsRegular() {
+				if !fi.Type.IsRegular() {
 					fresults = append(fresults, m.files[i])
 				}
 			}
@@ -535,12 +568,12 @@ start:
 		for j := 0; j < m.rows; j++ {
 			name := ""
 			if n < len(m.files) {
-				name = m.files[n].Name()
+				name = m.files[n].Name
 				if m.findPrevName && m.prevName == name {
 					m.c = i
 					m.r = j
 				}
-				if m.files[n].IsDir() {
+				if m.files[n].IsDir {
 					// Dirs should have a slash at the end.
 					name += "/"
 				}
@@ -599,7 +632,7 @@ start:
 		row := make([]string, m.columns)
 		for i := 0; i < m.columns; i++ {
 			if i == m.c && j == m.r {
-				if m.deleteCurrentFile {
+				if m.deleteCurrentFile && Trim(names[i][j], " ") != "../" {
 					row[i] = danger.Render(names[i][j])
 				} else {
 					row[i] = cursor.Render(names[i][j])
@@ -638,19 +671,15 @@ start:
 
 	main := bar + "\n" + Join(output, "\n")
 
-	if len(m.files) == 0 {
-		main = bar + "\n" + warning.Render("No files")
-	}
-
 	// Delete bar.
 	if len(m.toBeDeleted) > 0 {
 		toDelete := m.toBeDeleted[len(m.toBeDeleted)-1]
 		timeLeft := int(toDelete.at.Sub(time.Now()).Seconds())
 		deleteBar := ""
 		if m.searchEnabled {
-			deleteBar = fmt.Sprintf("%v deleted. (U)ndo %v", path.Base(toDelete.path), timeLeft)
+			deleteBar = fmt.Sprintf("%v to be deleted. (U)ndo operation %v", path.Base(toDelete.path), timeLeft)
 		} else {
-			deleteBar = fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
+			deleteBar = fmt.Sprintf("%v to be deleted. (u)ndo operation %v", path.Base(toDelete.path), timeLeft)
 		}
 		main += "\n" + danger.Render(deleteBar)
 	}
@@ -772,6 +801,11 @@ func (m *model) list() {
 		panic(err)
 	}
 
+	parentEntry := dirEntry{Name: "..", IsDir: true}
+	if m.path != "/" {
+		m.files = append(m.files, parentEntry)
+	}
+
 files:
 	for _, file := range files {
 		for _, toDelete := range m.toBeDeleted {
@@ -779,7 +813,8 @@ files:
 				continue files
 			}
 		}
-		m.files = append(m.files, file)
+		dirEntry := dirEntry{Name: file.Name(), IsDir: file.IsDir(), Type: file.Type(), fs: file}
+		m.files = append(m.files, dirEntry)
 	}
 }
 
@@ -820,7 +855,7 @@ func (m *model) fileName() (string, bool) {
 	if i >= len(m.files) || i < 0 {
 		return "", false
 	}
-	return m.files[i].Name(), true
+	return m.files[i].Name, true
 }
 
 func (m *model) filePath() (string, bool) {
