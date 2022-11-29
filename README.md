@@ -60,7 +60,7 @@ directory of the parent process.
  | `f, F`             | Toggle Filter, use capital when search / filter is active                     | 
  | `tab`              | Toggle between search and filter and between on and off by double pressing it | 
  | `space`            | Toggle Search / Filter on and off                                             | 
- | `/`                | Navigate to Root                                                              | 
+ | `\\`                | Navigate to Root                                                              | 
  | \``, ~`            | Navigate to Home                                                              | 
  | `!`                | Toggle files filtering directories                                            | 
  | `@`                | Toggle directories filtering files                                            | 
