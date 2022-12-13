@@ -43,12 +43,18 @@ var (
 	keyBottom       = key.NewBinding(key.WithKeys("shift+down"))
 	keyLeftmost     = key.NewBinding(key.WithKeys("shift+left"))
 	keyRightmost    = key.NewBinding(key.WithKeys("shift+right"))
-	keyVimOpen      = key.NewBinding(key.WithKeys("L"))
-	keyVimBack      = key.NewBinding(key.WithKeys("H"))
+	keyVimOpen      = key.NewBinding(key.WithKeys("O"))
+	keyVimBack      = key.NewBinding(key.WithKeys("I"))
+	keyVimOpenAlt   = key.NewBinding(key.WithKeys("o"))
+	keyVimBackAlt   = key.NewBinding(key.WithKeys("i"))
 	keyVimUp        = key.NewBinding(key.WithKeys("k"))
 	keyVimDown      = key.NewBinding(key.WithKeys("j"))
+	keyVimUpAlt     = key.NewBinding(key.WithKeys("K"))
+	keyVimDownAlt   = key.NewBinding(key.WithKeys("J"))
 	keyVimLeft      = key.NewBinding(key.WithKeys("h"))
 	keyVimRight     = key.NewBinding(key.WithKeys("l"))
+	keyVimLeftAlt   = key.NewBinding(key.WithKeys("H"))
+	keyVimRightAlt  = key.NewBinding(key.WithKeys("L"))
 	keyVimTop       = key.NewBinding(key.WithKeys("g"))
 	keyVimBottom    = key.NewBinding(key.WithKeys("G"))
 	keySearch       = key.NewBinding(key.WithKeys("/"))
@@ -163,7 +169,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	actionKeys := []key.Binding{keyToggleDir, keyToggleFiles, keyToggleHidden, keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete}
+	actionKeys := []key.Binding{keyToggleDir, keyToggleFiles, keyToggleHidden, keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete, keyVimUpAlt, keyVimDownAlt, keyVimLeftAlt, keyVimRightAlt}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -266,13 +272,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.list()
 				return m, nil
 			}
-			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
-			fmt.Println(m.path)            // Write to cd.
+			_, _ = fmt.Fprintln(os.Stderr)               // Keep last item visible after prompt.
+			fmt.Println(Replace(m.path, " ", "\\ ", -1)) // Write to cd.
+			// fmt.Println(m.path) // Write to cd.
 			m.exitCode = 0
 			// m.performPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyOpen, keyVimOpen):
+		case key.Matches(msg, keyOpen, keyVimOpen, keyVimOpenAlt):
 			// m.searchEnabled = false
 			searchFlipped = false
 			filePath, ok := m.filePath()
@@ -299,7 +306,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.openEditor()
 			}
 
-		case key.Matches(msg, keyBack, keyVimBack):
+		case key.Matches(msg, keyBack, keyVimBack, keyVimBackAlt):
 			// m.searchEnabled = false
 			searchFlipped = false
 			m.prevName = filepath.Base(m.path)
@@ -317,7 +324,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.searchString = ""
 			return m, nil
 
-		case key.Matches(msg, keyUp):
+		case key.Matches(msg, keyUp, keyVimUpAlt):
 			m.moveUp()
 
 		case key.Matches(msg, keyTop, keyVimTop):
@@ -337,7 +344,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.moveUp()
 			}
 
-		case key.Matches(msg, keyDown):
+		case key.Matches(msg, keyDown, keyVimDownAlt):
 			m.moveDown()
 
 		case key.Matches(msg, keyVimDown):
@@ -345,7 +352,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.moveDown()
 			}
 
-		case key.Matches(msg, keyLeft):
+		case key.Matches(msg, keyLeft, keyVimLeftAlt):
 			m.moveLeft()
 
 		case key.Matches(msg, keyVimLeft):
@@ -353,7 +360,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.moveLeft()
 			}
 
-		case key.Matches(msg, keyRight):
+		case key.Matches(msg, keyRight, keyVimRightAlt):
 			m.moveRight()
 
 		case key.Matches(msg, keyVimRight):
@@ -405,7 +412,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.deleteCurrentFile = false
 					m.toBeDeleted = append(m.toBeDeleted, toDelete{
 						path: filePathToDelete,
-						at:   time.Now().Add(6 * time.Second),
+						at:   time.Now().Add(4 * time.Second),
 					})
 					m.list()
 					m.previewContent = ""
@@ -473,6 +480,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, keyToggleFiles):
+			m.list()
 			var fresults []dirEntry
 			for i, fi := range m.files {
 				if !fi.IsDir {
@@ -485,6 +493,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.preview()
 
 		case key.Matches(msg, keyToggleDir):
+			m.list()
 			var fresults []dirEntry
 			for i, fi := range m.files {
 				if fi.IsDir {
@@ -497,6 +506,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.preview()
 
 		case key.Matches(msg, keyToggleHidden):
+			m.list()
 			var fresults []dirEntry
 			for i, fi := range m.files {
 				if !fi.Type.IsRegular() {
