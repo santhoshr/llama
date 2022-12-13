@@ -33,6 +33,8 @@ var (
 var (
 	keyForceQuit    = key.NewBinding(key.WithKeys("ctrl+c"))
 	keyQuit         = key.NewBinding(key.WithKeys("esc"))
+	keyQuitAlt1     = key.NewBinding(key.WithKeys("Q"))
+	keyQuitAlt2     = key.NewBinding(key.WithKeys("q"))
 	keyOpen         = key.NewBinding(key.WithKeys("enter"))
 	keyBack         = key.NewBinding(key.WithKeys("backspace"))
 	keyUp           = key.NewBinding(key.WithKeys("up"))
@@ -169,7 +171,12 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	actionKeys := []key.Binding{keyToggleDir, keyToggleFiles, keyToggleHidden, keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete, keyVimUpAlt, keyVimDownAlt, keyVimLeftAlt, keyVimRightAlt}
+
+	actionKeys := []key.Binding{keyToggleDir, keyToggleFiles, keyToggleHidden,
+		keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit,
+		keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete, keyVimUpAlt,
+		keyVimDownAlt, keyVimLeftAlt, keyVimRightAlt, keyQuitAlt1}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -261,7 +268,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// m.performPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyQuit):
+		case key.Matches(msg, keyQuit, keyQuitAlt1, keyQuitAlt2):
 			// if filter / search is active it clear first, then subsequent esc will quit
 			if m.searchEnabled && len(m.searchString) > 0 {
 				m.searchString = ""
