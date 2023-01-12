@@ -959,18 +959,20 @@ func lookup(names []string, val string) string {
 }
 
 func usage() {
-	_, _ = fmt.Fprintf(os.Stderr, "\n  "+cursor.Render(" llama ")+"\n\n  Usage: llama [path]\n\n")
+	_, _ = fmt.Fprintf(os.Stderr, "\n  "+cursor.Render(" llama ")+"\n\n  Usage: llama [--cd] [path]\n\n")
 	w := tabwriter.NewWriter(os.Stderr, 0, 8, 2, ' ', 0)
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
 	}
-	put("    Arrows, hjkl\tMove cursor")
-	put("    Shift+Arrows, hjkl\tMove cursor to corners")
+	put("    --cd\tStarts in directory only mode, use @ to toggle between showing directory only or all files")
+	put("    Arrows, Shift+hjkl\tMove cursor when in search or filter")
+	put("    Arrows, hjkl\tMove cursor when not in search or filter")
+	put("    Shift+Arrows\tMove cursor to corners")
 	put("    g/G\tMove cursor to top or bottom")
-	put("    Enter,L\tEnter directory")
-	put("    Backspace,H\tExit directory")
+	put("    Enter,O\tEnter directory")
+	put("    Backspace,I\tExit directory")
 	put("    p/P\tToggle preview")
-	put("    Esc\tExit with cd")
+	put("    Esc/Q/q\tExit with cd on empty filter or search, otherwise clears active filter or search")
 	put("    Ctrl+C\tExit without cd")
 	put("    /\tFuzzy search toggle")
 	put("    r/R\tReload directory list")
