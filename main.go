@@ -32,7 +32,9 @@ var (
 
 var (
 	keyForceQuit    = key.NewBinding(key.WithKeys("ctrl+c"))
-	keyQuit         = key.NewBinding(key.WithKeys("esc"))
+	keyQuit         = key.NewBinding(key.WithKeys("Q"))
+	keyQuitLower    = key.NewBinding(key.WithKeys("q"))
+	keyQuitAlt      = key.NewBinding(key.WithKeys("esc"))
 	keyOpen         = key.NewBinding(key.WithKeys("enter"))
 	keyBack         = key.NewBinding(key.WithKeys("backspace"))
 	keyUp           = key.NewBinding(key.WithKeys("up"))
@@ -74,6 +76,7 @@ var (
 
 var (
 	searchFlipped bool
+	cdMode        bool
 )
 
 func main() {
@@ -86,9 +89,19 @@ func main() {
 		if os.Args[1] == "--help" || os.Args[1] == "-h" {
 			usage()
 		}
+		if os.Args[1] == "--cd" {
+			cdMode = true
+		} else {
+			startPath, err = filepath.Abs(os.Args[1])
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
 
-		// Maybe it is and argument, so get absolute path.
-		startPath, err = filepath.Abs(os.Args[1])
+	// assume cd mode
+	if len(os.Args) == 3 {
+		startPath, err = filepath.Abs(os.Args[2])
 		if err != nil {
 			panic(err)
 		}
@@ -163,7 +176,7 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	actionKeys := []key.Binding{keyToggleDir, keyToggleFiles, keyToggleHidden, keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete}
+	actionKeys := []key.Binding{keyToggleDir, keyToggleFiles, keyToggleHidden, keyRoot, keyHome, keyHomeAlt, keyBack, keyFilter, keyPreview, keyQuit, keyQuitAlt, keyVimBack, keyVimOpen, keyReload, keyUndo, keyDelete}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -255,7 +268,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// m.performPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyQuit):
+		case key.Matches(msg, keyQuit, keyQuitAlt, keyQuitLower):
 			// if filter / search is active it clear first, then subsequent esc will quit
 			if m.searchEnabled && len(m.searchString) > 0 {
 				m.searchString = ""
@@ -485,7 +498,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.preview()
 
 		case key.Matches(msg, keyToggleDir):
-			var fresults []dirEntry
+			/* var fresults []dirEntry
 			for i, fi := range m.files {
 				if fi.IsDir {
 					fresults = append(fresults, m.files[i])
@@ -494,7 +507,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.files = fresults
 			m.updateOffset()
 			m.saveCursorPosition()
-			m.preview()
+			m.preview() */
+			cdMode = !cdMode
+			m.list()
+			m.previewContent = ""
+			return m, nil
 
 		case key.Matches(msg, keyToggleHidden):
 			var fresults []dirEntry
@@ -814,7 +831,9 @@ files:
 			}
 		}
 		dirEntry := dirEntry{Name: file.Name(), IsDir: file.IsDir(), Type: file.Type(), fs: file}
-		m.files = append(m.files, dirEntry)
+		if (cdMode && file.IsDir()) || !cdMode {
+			m.files = append(m.files, dirEntry)
+		}
 	}
 }
 
