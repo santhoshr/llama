@@ -852,7 +852,7 @@ func (m *model) updateOffset() {
 	if m.r < m.offset {
 		m.offset = m.r
 	}
-	// Don't scroll more than there are rows.
+	// Don't scroll more than there are rows
 	if m.offset > m.rows-height && m.rows > height {
 		m.offset = m.rows - height
 	}
@@ -964,7 +964,8 @@ func usage() {
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
 	}
-	put("    --cd\tStarts in directory only mode, use @ to toggle between showing directory only or all files")
+	put("    --cd\tStarts in directory only mode, use @ to toggle it")
+	put("    [path]\tOptional path to start in\n")
 	put("    Arrows, Shift+hjkl\tMove cursor when in search or filter")
 	put("    Arrows, hjkl\tMove cursor when not in search or filter")
 	put("    Shift+Arrows\tMove cursor to corners")
