@@ -37,6 +37,43 @@ function ll() {
 
 </td>
 </tr>
+</table> <br/>
+<table>
+	<tr>
+<th>Powershell Improved</th>
+	</tr><tr> 
+<td> 
+	
+```powershell improved
+function ll {
+    $output = & llama @args
+
+    # Show raw output for debugging
+    # $output | ForEach-Object { Write-Host "`t$_" }
+
+    foreach ($line in $output) {
+        if (-not [string]::IsNullOrWhiteSpace($line)) {
+            # Trim leading/trailing spaces
+            $trimmed = $line.Trim()
+
+            # Try to resolve relative path to full path
+            try {
+                $resolvedPath = Resolve-Path -Path $trimmed -ErrorAction Stop
+                Set-Location $resolvedPath
+                return
+            } catch {
+                # Ignore invalid lines
+            }
+        }
+    }
+
+    Write-Host "No valid path returned from llama." -ForegroundColor Red
+}
+
+```
+
+</td>
+</tr>
 </table>
 
 
